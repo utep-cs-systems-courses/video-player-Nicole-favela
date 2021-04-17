@@ -2,7 +2,7 @@
 
 import threading
 import cv2
-import numpy as np
+import os
 import base64
 import queue
 
@@ -42,36 +42,34 @@ def extractFrames(fileName, total):
     # read first image
     success,image = vidcap.read()
     
-    print(f'Reading frame {count} {success}')
+    os.write(1,(f'Reading frame {count} {success}').encode())
     while success:
         # get a jpg encoded frame
         success, jpgImage = cv2.imencode('.jpg', image)
         producerQ.put(image)
-        print(f'Reading frame {count}{success}')
         count+=1
-        
-
-        # add the frame to the buffer
-        #outputBuffer.put(image)
+        #gets jpeg and lets you know if its successful or not 
         success,image = vidcap.read()
-    print("frame extraction into producer Q complete")
+        os.write(1,(f'reading frame {count} \n').encode())
+    os.write(1,(f'frame extraction into producer Q complete\n').encode())
 
 #Dequues and enqueues into consumer queue
 def convertToGrayScale():
     count = 0
     while 1:
         if producerQ.isEmpty():
-            continue #change to exit???
-        getFrame = producerQ.get()
+            continue 
+        getFrame = producerQ.get() #gets frames from producer Q
         if count ==totalFrames:
-            print(f'converting the last frame {count}')
+            os.write(1,(f'converting the last frame {count}\n').encode())
             break
         #convert grayscale
         grayScaleFrame = cv2.cvtColor(getFrame, cv2.COLOR_BGR2GRAY)
-        consumerQ.put(grayScaleFrame)
-        print(f'Converting frame {count}')
+        consumerQ.put(grayScaleFrame) #adds to consumer q 
+        os.write(1,(f'Converting frame {count}\n').encode())
     
         count+=1
+    os.write(1,(f'convert to grayscale complete\n').encode())
         
 
 def displayFrames():
@@ -81,14 +79,14 @@ def displayFrames():
     # go through each frame in the buffer until the buffer is empty
     while 1:
         if count == totalFrames:
-            print(f'last frame {count}')
+            os.write(1,(f'last frame {count}\n').encode())
             break
         if consumerQ.isEmpty():
             continue 
         # get the next frame
         frame = consumerQ.get()
 
-        print(f'Displaying frame {count}')        
+        os.write(1,(f'Displaying frame {count}\n').encode())        
 
         # display the image in a window called "video" and wait 42ms
         # before displaying the next frame
@@ -98,40 +96,27 @@ def displayFrames():
 
         count += 1
 
-    print('Finished displaying all frames')
+    os.write(1,(f'Finished displaying all frames\n').encode())
     # cleanup the windows
     cv2.destroyAllWindows()
 
-# filename of clip to load
-#filename = 'clip.mp4'
-
-# shared queue  
-#extractionQueue = queue.Queue()
-
-# extract the frames
-#extractFrames(filename,extractionQueue, 72)
-
 # display the frames
-print("before producer Q")
+
 producerQ = ProducerConsumerQ()
-print("after produecer")
+
 consumerQ = ProducerConsumerQ()
-print("after consumer q")
+
 filename = 'clip.mp4'
 c = cv2.VideoCapture(filename)
 totalFrames = int(c.get(cv2.CAP_PROP_FRAME_COUNT))-1 #gets total number of frames from the file
-print("anything")
+
 extractThread = threading.Thread(target= extractFrames,args = (filename, totalFrames))
-print("anything you want")
+
 convertGrayScaleThread = threading.Thread(target = convertToGrayScale)
-print("after gray scale thread")
 displayThread = threading.Thread(target = displayFrames)
-print("after display thread")
 extractThread.start()
-print("after extract thread")
 convertGrayScaleThread.start()
-print("after gray scale thread")
 displayThread.start()
-print("done")
+
 
 
